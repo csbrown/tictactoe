@@ -1,5 +1,5 @@
 import brain
-import easyAI
+import ai
 import time
 import sys
 from pybrain.tools.customxml.networkwriter import NetworkWriter

@@ -15,7 +15,7 @@ class TTTBrain(object):
     NB: Can the network represent illegal moves somehow?
     '''
     def __init__(self):
-        self.trainer_settings = { "learningrate" : 0.01,
+        self.trainer_settings = { "learningrate" : 0.05,
                                   "momentum" : 0.99
                                 }
         self.records = {"win" : 0, "lose" : 0, "tie" : 0}
@@ -82,7 +82,7 @@ class TTTBrain(object):
 
         # We tied
         else:
-            self.train_outcome(playlist, player, self.lose_output_chooser)
+            self.train_outcome(playlist, player, self.win_output_chooser)
             self.records["tie"] += 1
 
     def dump(self, filename):

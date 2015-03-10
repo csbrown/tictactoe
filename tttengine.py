@@ -108,22 +108,16 @@ class TTTGame(object):
 def record_compare(record1, record2):
     return record1["win"] + record1["tie"] > record2["win"] + record2["tie"]
 
-if __name__ == "__main__":
-    MAI = easyAI.TTTMediumAI()
-    best_record = {"tie" : 0, "win" : 0, "lose" : 100}
-    for i in range(1):
 
-        NNAI = easyAI.TTTNNAI(filename = "best.xml")
-        for j in range(1000000):
-            if not j % 100000: 
-                print "=",
-                sys.stdout.flush()
-            game = TTTGame(NNAI, MAI, verbose = False, tbm = 0)
-            game.play()
-        if record_compare(NNAI.brain.records, best_record):
-            #NNAI.brain.dump("best.xml")
-            best_record = NNAI.brain.records
-            print best_record
-        #NNAI.brain.dump("brain.xml")
-    #NNAI.brain.load("best.xml")
-    #NNAI.brain.dump("brain.xml")
+if __name__ == "__main__":
+    LAI = ai.TTTPerfectAI()
+    best_record = {"tie" : 0, "win" : 0, "lose" : 1000}
+    NNAI = ai.TTTNNAI(filename = "brain.xml")
+    for j in range(10000):
+        if not j % 1000: 
+            print "=",
+            sys.stdout.flush()
+        game = TTTGame(NNAI, LAI, verbose = False, tbm = 0)
+        game.play()
+        NNAI.brain.dump("brain.xml")
+

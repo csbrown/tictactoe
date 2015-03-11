@@ -110,14 +110,34 @@ def record_compare(record1, record2):
 
 
 if __name__ == "__main__":
+    brainfile = "brain3.xml"
     LAI = ai.TTTPerfectAI()
-    best_record = {"tie" : 0, "win" : 0, "lose" : 1000}
-    NNAI = ai.TTTNNAI(filename = "brain.xml")
-    for j in range(10000):
-        if not j % 1000: 
-            print "=",
-            sys.stdout.flush()
-        game = TTTGame(NNAI, LAI, verbose = False, tbm = 0)
-        game.play()
-        NNAI.brain.dump("brain.xml")
+    if sys.argv[1] == "evolve":
+        best_record = {"tie" : 0, "win" : 0, "lose" : 0}
+        for i in range(100):
+            if not i % 10: 
+                print "=",
+                sys.stdout.flush()
+            NNAI = ai.TTTNNAI()
+            for j in range(300):
+                game = TTTGame(NNAI, LAI, verbose = False, tbm = 0)
+                game.play()
+            if record_compare(NNAI.record, best_record):
+                best_record = NNAI.record
+                print NNAI.record, (NNAI.record["win"] + NNAI.record["tie"])*1./(1 + sum(NNAI.record.values())) 
+                NNAI.brain.dump(brainfile)
+
+    if sys.argv[1] == "train":
+        NNAI = ai.TTTNNAI(filename = brainfile)
+        try:
+            while True:
+                game = TTTGame(NNAI, LAI, verbose = False, tbm = 0)
+                game.play()
+                print NNAI.record, (NNAI.record["win"] + NNAI.record["tie"])*1./(1 + sum(NNAI.record.values()))
+        except KeyboardInterrupt:
+            save = raw_input("save? (y/n):")
+            if save.lower() == "yes" or save.lower() == "y":
+                NNAI.brain.dump(brainfile)
+        
+    
 

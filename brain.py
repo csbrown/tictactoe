@@ -1,9 +1,10 @@
-from pybrain.structure import TanhLayer, FeedForwardNetwork, LinearLayer, FullConnection
+from pybrain.structure import TanhLayer, FeedForwardNetwork, LinearLayer, FullConnection, SoftmaxLayer
 from pybrain.datasets import SupervisedDataSet
 from pybrain.supervised.trainers import BackpropTrainer
 import random
 from pybrain.tools.customxml.networkwriter import NetworkWriter
 from pybrain.tools.customxml.networkreader import NetworkReader
+import tttengine
 
 class TTTBrain(object):
     '''
@@ -15,10 +16,9 @@ class TTTBrain(object):
     NB: Can the network represent illegal moves somehow?
     '''
     def __init__(self):
-        self.trainer_settings = { "learningrate" : 0.05,
-                                  "momentum" : 0.99
+        self.trainer_settings = { "learningrate" : 0.2,
+                                  "momentum" : 0.9
                                 }
-        self.records = {"win" : 0, "lose" : 0, "tie" : 0}
     
     def create_input_layer(self):
         '''This defines the input layer of a backgammon game'''
@@ -28,13 +28,14 @@ class TTTBrain(object):
     def create_output_layer(self):
         '''This defines the output layer of the game'''
         spots = 9
-        return LinearLayer(spots)
+        return SoftmaxLayer(spots)
 
     def create_hidden_layers(self):
         layers = []
-        numlayers = random.randint(4,8)
+        numlayers = 3
         for layer in range(numlayers):
-            layers.append(TanhLayer(random.randint(9,15)))
+            #(5 - abs(layer - 5))
+            layers.append(TanhLayer(9))
         return layers
 
     def add_layers(self, inp, outp, hiddens):
@@ -43,47 +44,35 @@ class TTTBrain(object):
         for layer in hiddens:
             self.net.addModule(layer)
 
+    def add_complete_connections(self, inp, outp, hiddens):
+        all_layers = [inp] + hiddens + [outp]
+        for i in range(len(all_layers) - 1):
+            self.net.addConnection(FullConnection(all_layers[i], all_layers[i + 1]))
+
     def add_connections(self, inp, outp, hiddens):
         self.net.addConnection(FullConnection(inp, hiddens[0]))
         for i in range(len(hiddens)-1):
             self.net.addConnection(FullConnection(hiddens[i], hiddens[i+1]))
         self.net.addConnection(FullConnection(hiddens[-1], outp))
-
-    def train_outcome(self, playlist, player, correct_output_chooser):
-        data = SupervisedDataSet(9, 9)
-        for play in playlist:
-            if play.player == player:
-                correct_output = correct_output_chooser(play.board, play.position, play.player)
-                data.addSample(tuple(play.board.board), tuple(correct_output)) 
-        trainer = BackpropTrainer(self.net, data, **self.trainer_settings)
-        trainer.train()
         
-    def win_output_chooser(self, board, position, player):
+    def win_output_chooser(self, position):
         correct_output = [0] * 9
         correct_output[position] = 1
         return tuple(correct_output)
-
-    def lose_output_chooser(self, board, position, player):
-        correct_output = [0] * 9
-        possible_output = [pos for pos in range(0,9) if board.is_legal(pos)]
-        correct_output[random.choice(possible_output)] = 1
-        return tuple(correct_output)
         
-    def train(self, playlist, outcome, player):
-        # We won
-        if outcome == 1 and player == 1:
-            self.train_outcome(playlist, player, self.win_output_chooser)
-            self.records["win"] += 1
-            
-        # We lost
-        elif outcome == -1 and player == 1:
-            self.train_outcome(playlist, player, self.lose_output_chooser)
-            self.records["lose"] += 1
+    def train(self, playlist, winner):
+        data = SupervisedDataSet(9, 9)
+        for play in playlist:
+            if play.player == winner or winner == 0:
+                correct_output = self.win_output_chooser(play.position)
+                data.addSample(tuple(play.board.board), tuple(correct_output)) 
+        trainer = BackpropTrainer(self.net, data, **self.trainer_settings)
+        trainer.train()
 
-        # We tied
-        else:
-            self.train_outcome(playlist, player, self.win_output_chooser)
-            self.records["tie"] += 1
+    def train_illegal(self, board, position):
+        player = random.choice([1, -1])
+        playlist = [tttengine.TTTPlay(board, position, player)]
+        self.train(playlist, player*(-1), player)
 
     def dump(self, filename):
         '''Save this network to file'''

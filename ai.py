@@ -3,36 +3,49 @@ import brain
 from pybrain.tools.customxml.networkreader import NetworkReader
 import numpy as np
 import sys
+import random
 
 class TTTPlayer(object):
+    def __init__(self):
+        self.record = {"win" : 0, "lose" : 0, "tie" : 0}
+
     def get_play(self, board, which_player):
         pass
 
     def inform_illegal_play(self, board, which_player, position):
-        pass
+        raise Exception(self.__class__.__name__ + " made an illegal play at position {} on board: \n {}".format(position, str(board)))
 
-    def inform_winner(self, board, which_player, winner):
-        pass
+    def inform_winner(self, which_player, winner, playlist):
+        if which_player == winner:
+            self.record["win"] += 1
+        elif winner == 0:
+            self.record["tie"] += 1
+        else:
+            self.record["lose"] += 1
+
+    def free_spaces(self, board):
+        '''which spaces are free'''
+        return [i for i in range(0,9) if board.is_legal(i)]
 
 class TTTPerfectAI(TTTPlayer):
 
     def recurse_ahead(self, board, which_player):
         '''Given a board node, search all child nodes and return (the best space to play, who the expected winner is under optimal play)'''
-        free = self.free_spaces(board)
 
-        # If no free space left, report who won
-        if len(free) == 0:
-            winner = board.is_winner()
-            return (None, winner if winner else 0)
+        # If there is a winner, return that
+        winner = board.is_winner()
+        free = self.free_spaces(board)
+        if winner:
+            return (None, winner)
+        # If the game has tied, return that 
+        elif len(free) == 0:
+            return (None, 0)
 
         # if a space wins, return that space, else, recurse
         children = []
         for space in free:
             copy = board.copy()
             copy.update_board(space, which_player)
-            winner = copy.is_winner()
-            if winner:
-                return (space, which_player)
             children.append((space, self.recurse_ahead(copy, which_player*(-1))[1]))
 
         # Pick the best move from possible moves
@@ -46,10 +59,6 @@ class TTTPerfectAI(TTTPlayer):
                 best = child
 
         return best
-                  
-    def free_spaces(self, board):
-        '''which spaces are free'''
-        return [i for i in range(0,9) if board.is_legal(i)]
 
     def get_play(self, board, which_player):
         # First play
@@ -109,9 +118,6 @@ class TTTMediumAI(TTTPlayer):
         position = int(np.random.choice(spaces, p = space_weights))
         return position
 
-    def inform_illegal_play(self, board, which_player, position):
-        raise Exception("MediumAI made an illegal play at position {} on board: \n {}".format(position, str(board)))
-
         
 
 class TTTEasyAI(TTTPlayer):
@@ -135,12 +141,15 @@ class TTTEasyAI(TTTPlayer):
             if copy.is_legal(i):
                 return i
 
-    def inform_illegal_play(self, board, which_player, position):
-        raise Exception("EasyAI made an illegal play at position {} on board: \n {}".format(position, str(board)))
+
+class TTTRandomAI(TTTPlayer):
+    def get_play(self, board, which_player):
+        return random.choice(self.free_spaces(board))
 
  
 class TTTNNAI(TTTPlayer):
     def __init__(self, filename = None):
+        TTTPlayer.__init__(self)
         self.brain = brain.TTTBrain()
         if not filename:
             self.brain.fresh()
@@ -149,16 +158,13 @@ class TTTNNAI(TTTPlayer):
         
     def get_play(self, board, which_player):
         # Consult the brain
+        found_position = False
         possibilities = self.brain.net.activate(tuple(board.board))
-        # Take the best play that is legal
-        position = max(range(0, 9), key = lambda i: possibilities[i] + board.is_legal(i)*10000000)
-        return position
-
-    def inform_illegal_play(self, board, which_player, position):
-        raise Exception("NNAI made an illegal play at position {} on board: \n {}".format(position, str(board)))
+        return max(range(0,9), key = lambda i: possibilities[i] + board.is_legal(i)*10000000000)
 
     def inform_winner(self, which_player, winner, playlist):
-        self.brain.train(playlist, winner, which_player)
+        TTTPlayer.inform_winner(self, which_player, winner, playlist)
+        self.brain.train(playlist, winner)
 
 
 class TTTHuman(TTTPlayer):
@@ -170,10 +176,8 @@ class TTTHuman(TTTPlayer):
             legal = board.is_legal(position)
         return position
 
-    def inform_illegal_play(self, board, which_player, position):
-        raise Exception("Human made an illegal play at position {} on board: \n {}".format(position, str(board)))
-
     def inform_winner(self, which_player, winner, playlist):
+        TTTPlayer.inform_winner(self, which_player, winner, playlist)
         if which_player == winner:
             print "You win!"
         elif winner == 0:
